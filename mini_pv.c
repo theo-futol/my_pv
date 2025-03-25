@@ -28,9 +28,10 @@ static int display(pv_t *my_pv)
 
     if (my_pv->total == 0 || display_time(my_pv) == 84)
         return 84;
-    percentage = ((float)my_pv->bytes_read / (float)my_pv->total) * 100; 
+    percentage = ((float)my_pv->bytes_read / (float)my_pv->total) * 100;
     printf("Progress: %lld b / %lld b (%.2f %%). Bitrate: %lld bytes/sec.\n",
-    my_pv->bytes_read, my_pv->total, percentage, my_pv->time_elaps / my_pv->bytes_read);
+    my_pv->bytes_read, my_pv->total, percentage, my_pv->time_elaps / my_pv->
+    bytes_read);
     return 0;
 }
 
@@ -44,12 +45,21 @@ static int get_file_size(char *pathname, pv_t *my_pv)
     return 0;
 }
 
+/**
+ * @brief Lit les données de stdin et les écrit vers stdout.
+ *
+ * Cette fonction lit les données en utilisant un buffer
+ * et affiche périodiquement les statistiques de progression.
+ *
+ * @param buffer_size Taille du buffer en octets.
+ * @return int Retourne 0 si succès, -1 en cas d'erreur.
+ */
 int mini_pv(char *pathname, pv_t *my_pv)
 {
     FILE *stream = fopen(pathname, "r");
     ssize_t bytes_read = 0;
     char buffer[2048] = {0};
-    
+
     if (!stream)
         return 84;
     if (get_file_size(pathname, my_pv) == 84){
