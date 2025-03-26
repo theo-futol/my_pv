@@ -8,6 +8,7 @@
 #ifndef INCLUDE_H
     #define INCLUDE_H
     #include <stdio.h>
+    #include <stdbool.h>
     #include <unistd.h>
     #include <sys/time.h>
     #include <time.h>
@@ -15,6 +16,9 @@
     #include <stdlib.h>
     #include <sys/stat.h>
     #include <sys/sysmacros.h>
+    #include <signal.h>
+    #include <termios.h>
+    #include <fcntl.h>
 
 typedef struct pv_s {
     // Total number of bytes already read
@@ -23,5 +27,7 @@ typedef struct pv_s {
     unsigned long long total;
     // Elapsed time in seconds
     unsigned long time_elapsed;
+    // Time when start in seconds
+    unsigned long time_start;
 } pv_t;
 #endif

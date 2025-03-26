@@ -22,12 +22,17 @@ static int display_time(pv_t *my_pv)
     struct tm *current_time = localtime(&clock);
     struct timeval tv = {0};
 
-    if (gettimeofday(&tv, NULL) == -1 || current_time == NULL)
+    if (gettimeofday(&tv, NULL) == -1 || current_time == NULL){
+        perror("An error occurred");
         return 84;
-    my_pv->time_elapsed = tv.tv_sec;
-    printf("%d-%02d-%02d %02d:%02d:%02d.%.2ld: ", 1900 + current_time->tm_year,
-    current_time->tm_mon, current_time->tm_mday, current_time->tm_hour,
-    current_time->tm_min, current_time->tm_sec, tv.tv_sec + tv.tv_usec);
+    }
+    my_pv->time_elapsed = tv.tv_sec - my_pv->time_start;
+    if (my_pv->time_elapsed == 0)
+        return -1;
+    dprintf(2, "%d-%02d-%02d %02d:%02d:%02d.%.2ld: ",
+    1900 + current_time->tm_year, current_time->tm_mon,
+    current_time->tm_mday, current_time->tm_hour, current_time->tm_min,
+    current_time->tm_sec, tv.tv_usec);
     return 0;
 }
 
@@ -41,16 +46,19 @@ static int display_time(pv_t *my_pv)
  * and the current time in seconds.
  * @return int Returns 0 on success, 84 on error.
 */
-static int display(pv_t *my_pv)
+int display(pv_t *my_pv)
 {
     float percentage = 0;
+    int time = display_time(my_pv);
 
-    if (my_pv->total == 0 || display_time(my_pv) == 84)
+    if (time == -1)
+        return 0;
+    if (time == 84 || my_pv->time_elapsed == 0)
         return 84;
     percentage = ((float)my_pv->bytes_read / (float)my_pv->total) * 100;
-    printf("Progress %lld b / %lld b (%.2f %%). Bitrate: %lld bytes/sec.\n",
-    my_pv->bytes_read, my_pv->total, percentage, my_pv->time_elapsed / my_pv->
-    bytes_read);
+    dprintf(2, "Progress %lld b / %lld b (%.2f %%). Bitrate: %lld bytes/sec.\n"
+    , my_pv->bytes_read, my_pv->total, percentage, my_pv->bytes_read /
+    my_pv->time_elapsed);
     return 0;
 }
 
@@ -65,14 +73,18 @@ static int display(pv_t *my_pv)
  * and the current time in microseconds.
  * @return int Returns 0 on success, 84 on error.
 */
-static int get_file_size(char *pathname, pv_t *my_pv)
+static int get_file_size(const char *const pathname, pv_t *my_pv)
 {
     struct stat stat_file = {0};
 
-    if (pathname == NULL)
+    if (pathname == NULL){
+        perror("An error occurred");
         return 84;
-    if (stat(pathname, &stat_file) == -1)
+    }
+    if (stat(pathname, &stat_file) == -1){
+        perror("An error occurred");
         return 84;
+    }
     my_pv->total = stat_file.st_size;
     return 0;
 }
@@ -88,35 +100,61 @@ static int get_file_size(char *pathname, pv_t *my_pv)
  * and the current time in seconds.
  * @return int Returns 0 on success, 84 on error.
 */
-int mini_pv(char *pathname, pv_t *my_pv)
+int mini_pv(const char *const pathname, pv_t *my_pv)
 {
-    FILE *stream = fopen(pathname, "r");
+    int fd = open(pathname, O_RDONLY);
     ssize_t bytes_read = 0;
-    char buffer[2048] = {0};
+    char buffer[4096] = {0};
 
-    if (!stream)
+    if (fd == -1){
+        perror("An error occurred");
         return 84;
-    do {
-        bytes_read = fread(buffer, 1, 2048, stream);
+    }
+    bytes_read = read(fd, buffer, 4096);
+    for (; bytes_read > 0; bytes_read = read(fd, buffer, 4096)){
         my_pv->bytes_read += bytes_read;
+        write(STDOUT_FILENO, buffer, 4096);
         if (display(my_pv) == 84){
-            fclose(stream);
+            close(fd);
             return 84;
         }
-    } while (bytes_read > 0);
-    fclose(stream);
-    printf("Done !\n");
+    }
+    close(fd);
+    dprintf(2, "Done !\n");
     return 0;
+}
+
+/**
+ * @brief Handles program termination on signal.
+ *
+ * This function stops the program when Ctrl+C
+ * (SIGINT) is detected.
+ *
+ * @param sig The signal number that triggered the handler.
+ * @return void
+ */
+static void sigint_hand(int sig)
+{
+    (void)sig;
+    dprintf(2, "Done !\n");
+    exit(0);
 }
 
 int main(int ac, char **av)
 {
     pv_t my_pv = {0};
+    struct timeval tv = {0};
 
     if (ac != 2){
-        dprintf(2, "\033[0;31mToo many arguments!\033[0m\n");
+        dprintf(2, "\033[0;31mInvalid number of arguments!\033[0m\n");
         return 84;
     }
+    if (gettimeofday(&tv, NULL) == -1){
+        perror("An error occurred");
+        return 84;
+    }
+    my_pv.time_start = tv.tv_sec;
+    signal(SIGINT, sigint_hand);
     if (get_file_size(av[1], &my_pv) == 84)
         return 84;
     return mini_pv(av[1], &my_pv);
