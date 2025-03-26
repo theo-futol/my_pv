@@ -135,9 +135,8 @@ int mini_pv(const char *const pathname, pv_t *my_pv)
  */
 static void sigint_hand(int sig)
 {
-    (void)sig;
     dprintf(2, "Done !\n");
-    exit(0);
+    exit(sig);
 }
 
 int main(int ac, char **av)
