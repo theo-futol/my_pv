@@ -15,11 +15,13 @@
     #include <stdlib.h>
     #include <sys/stat.h>
     #include <sys/sysmacros.h>
+
 typedef struct pv_s {
-    // Taille du buffer pour lire les données (4 Ko)
+    // Total number of bytes already read
     unsigned long long bytes_read;
+    // Total number of bytes to read
     unsigned long long total;
-    unsigned long long bitrate;
-    unsigned long time_elaps;
+    // Elapsed time in seconds
+    unsigned long time_elapsed;
 } pv_t;
 #endif
